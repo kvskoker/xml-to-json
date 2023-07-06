@@ -1,0 +1,42 @@
+{
+  "meta": {
+    "$_GET": [
+      {
+        "type": "text",
+        "options": {
+          "rules": {
+            "core:required": {
+              "message": "URL to XML data is required."
+            }
+          }
+        },
+        "name": "xml"
+      }
+    ]
+  },
+  "exec": {
+    "steps": [
+      {
+        "name": "getXMLData",
+        "module": "api",
+        "action": "send",
+        "options": {
+          "url": "{{$_GET.xml}}"
+        }
+      },
+      {
+        "name": "jsonData",
+        "module": "runjs",
+        "action": "run",
+        "options": {
+          "code": "const { DOMParser } = require(\"xmldom\");\n\nfunction xmlToJSON(xml) {\n  const parser = new DOMParser();\n  const xmlDoc = parser.parseFromString(xml, \"text/xml\");\n  const jsonObj = {};\n  function parseElement(element, obj) {\n    const nodes = element.childNodes;\n    for (let i = 0; i < nodes.length; i++) {\n      const node = nodes[i];\n      if (node.nodeType === 1) {\n        const name = node.nodeName;\n        if (obj[name]) {\n          if (Array.isArray(obj[name])) {\n            obj[name].push(parseElement(node, {}));\n          } else {\n            const temp = obj[name];\n            obj[name] = [temp, parseElement(node, {})];\n          }\n        } else {\n          obj[name] = parseElement(node, {});\n        }\n      } else if (node.nodeType === 3) {\n        const text = node.textContent.trim();\n        if (text.length > 0) {\n          obj = text;\n        }\n      }\n    }\n\n    return obj;\n  }\n  const rootElement = xmlDoc.documentElement;\n  jsonObj[rootElement.nodeName] = parseElement(rootElement, {});\n  return jsonObj;\n}\n\n\nconst json = xmlToJSON(xmlData);\n\n\nreturn json;",
+          "import_require": true,
+          "data": {
+            "xmlData": "{{getXMLData.data}}"
+          }
+        },
+        "output": true
+      }
+    ]
+  }
+}
